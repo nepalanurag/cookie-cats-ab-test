@@ -1,0 +1,74 @@
+{
+  "n_total": 90189,
+  "n_gate_30": 44700,
+  "n_gate_40": 45489,
+  "randomization": {
+    "split_binomial_p": 0.008692234389090985,
+    "gamerounds_median_gate_30": 17.0,
+    "gamerounds_median_gate_40": 16.0,
+    "gamerounds_mannwhitney_p": 0.05020880772044255
+  },
+  "retention_1": {
+    "rate_gate_30": 0.4481879194630872,
+    "rate_gate_40": 0.44228274967574577,
+    "diff_pp": -0.5905169787341458,
+    "ci95_pp": [
+      -1.2392439449445218,
+      0.05820998747623034
+    ],
+    "relative_change_pct": -1.317565585974659,
+    "z": -1.7840862247974725,
+    "p_value": 0.07440965529691913
+  },
+  "retention_7": {
+    "rate_gate_30": 0.19020134228187918,
+    "rate_gate_40": 0.18200004396667327,
+    "diff_pp": -0.8201298315205913,
+    "ci95_pp": [
+      -1.3281552418885547,
+      -0.312104421152628
+    ],
+    "relative_change_pct": -4.311903489646016,
+    "z": -3.164358912748191,
+    "p_value": 0.001554249975614329
+  },
+  "power": {
+    "baseline_d1_retention_gate_30": 0.4481879194630872,
+    "mde_pp_at_80pct_power_baseline_d1": 0.9278960839226046,
+    "mde_pp_at_80pct_power_baseline_d7": 0.7322661887045199,
+    "observed_d7_diff_pp": -0.8201298315205913,
+    "achieved_power_for_observed_d7_diff": 0.8857245457743143,
+    "powered_for_observed_d7_diff": true
+  },
+  "guardrail_engagement": {
+    "mean_rounds_gate_30": 52.45626398210291,
+    "mean_rounds_gate_40": 51.29877552814966,
+    "mean_diff": -1.157488453953249,
+    "welch_t_p": 0.37592438409326223,
+    "zero_round_share_gate_30": 0.043333333333333335,
+    "zero_round_share_gate_40": 0.04521972344962518,
+    "zero_round_share_test": {
+      "rate_gate_30": 0.043333333333333335,
+      "rate_gate_40": 0.04521972344962518,
+      "diff_pp": 0.1886390116291846,
+      "ci95_pp": [
+        -0.07985071031288096,
+        0.45712873357125017
+      ],
+      "relative_change_pct": 4.35320796067349,
+      "z": 1.376797875619883,
+      "p_value": 0.1685747478398748
+    },
+    "breach": false
+  },
+  "retention_7_bootstrap": {
+    "n_resamples": 10000,
+    "seed": 42,
+    "diff_pp": -0.8185914104464521,
+    "ci95_pp": [
+      -1.3313370877626443,
+      -0.3166376715308841
+    ],
+    "share_of_resamples_diff_below_0": 0.9991
+  }
+}

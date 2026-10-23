@@ -1,0 +1,10 @@
+/home/hatch/.local/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+rows=90189  gate_30=44700  gate_40=45489
+randomization: split binomial p=0.009; median rounds 30=17.0 40=16.0; MWU p=0.050
+retention_1: gate_30=0.4482 gate_40=0.4423 diff=-0.59pp CI[-1.24,+0.06] p=0.07441
+retention_7: gate_30=0.1902 gate_40=0.1820 diff=-0.82pp CI[-1.33,-0.31] p=0.001554
+power: MDE=0.93pp @80% (D1 baseline); MDE=0.73pp @80% (D7 baseline); observed D7 diff -0.82pp; achieved power=0.886; powered=True
+guardrail: mean rounds 30=52.46 40=51.30 (Welch p=0.376); zero-round share diff=+0.19pp (p=0.169); breach=False
+bootstrap D7 diff: mean=-0.82pp CI[-1.33,-0.32]; P(diff<0)=0.999
+wrote outputs/results.json and figures/*.png
