@@ -3,7 +3,7 @@
   "n_gate_30": 44700,
   "n_gate_40": 45489,
   "randomization": {
-    "split_binomial_p": 0.008692234389090985,
+    "split_binomial_p": 0.008692234389090966,
     "gamerounds_median_gate_30": 17.0,
     "gamerounds_median_gate_40": 16.0,
     "gamerounds_mannwhitney_p": 0.05020880772044255
@@ -44,7 +44,7 @@
     "mean_rounds_gate_30": 52.45626398210291,
     "mean_rounds_gate_40": 51.29877552814966,
     "mean_diff": -1.157488453953249,
-    "welch_t_p": 0.37592438409326223,
+    "welch_t_p": 0.37592438409326173,
     "zero_round_share_gate_30": 0.043333333333333335,
     "zero_round_share_gate_40": 0.04521972344962518,
     "zero_round_share_test": {
@@ -70,5 +70,67 @@
       -0.3166376715308841
     ],
     "share_of_resamples_diff_below_0": 0.9991
+  },
+  "srm": {
+    "n_expected_per_arm": 45094.5,
+    "chi2": 6.9024049496058275,
+    "p_value": 0.008607987810836262,
+    "split_pct_gate_30": 49.56258523766757,
+    "split_pct_gate_40": 50.43741476233243,
+    "flags_at_0_01": true,
+    "flags_at_0_001": false
+  },
+  "sensitivity_ipw_retention_7": {
+    "method": "inverse-probability weights w = 0.5 / arm_share, Hajek weighted rates, linearization (sandwich) variance",
+    "weight_gate_30": 1.0088255033557048,
+    "weight_gate_40": 0.991327573699136,
+    "rate_gate_30_weighted": 0.1902013422818792,
+    "rate_gate_40_weighted": 0.18200004396667327,
+    "diff_pp": -0.820129831520594,
+    "ci95_pp": [
+      -1.3281552418885574,
+      -0.3121044211526308
+    ],
+    "effective_n_gate_30": 44700.0,
+    "effective_n_gate_40": 45489.0,
+    "conclusion_holds": true
+  },
+  "sensitivity_trim_retention_7": {
+    "method": "1,000 seeded random trims of gate_40 to n = 44,700 (hypergeometric draws), two-proportion z-test per trim",
+    "n_trims": 1000,
+    "seed": 43,
+    "mean_diff_pp": -0.8185458612975379,
+    "diff_pp_percentiles_2_5_97_5": [
+      -0.8657718120805347,
+      -0.776286353467559
+    ],
+    "share_of_trims_diff_below_0": 1.0,
+    "share_of_trims_significant_at_0_05": 1.0,
+    "conclusion_holds": true
+  },
+  "retention_curve": {
+    "days": [
+      1,
+      7
+    ],
+    "gate_30_pct": [
+      44.81879194630872,
+      19.020134228187917
+    ],
+    "gate_40_pct": [
+      44.22827496757458,
+      18.200004396667328
+    ],
+    "d7_rate_among_d1_retained_gate_30": 0.3332335030448238,
+    "d7_rate_among_d1_retained_gate_40": 0.32337591331577115
+  },
+  "followup_sample_size": {
+    "metric": "day-7 retention",
+    "baseline_rate_gate_30": 0.19020134228187918,
+    "mde_pp": 0.5,
+    "alpha": 0.05,
+    "power": 0.8,
+    "n_per_arm": 97679,
+    "n_total": 195358
   }
 }

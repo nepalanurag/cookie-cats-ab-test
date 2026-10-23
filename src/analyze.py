@@ -115,7 +115,8 @@ print(f"power: MDE={mde_pp(p_d1):.2f}pp @80% (D1 baseline); "
       f"powered={R['power']['powered_for_observed_d7_diff']}")
 
 # --- guardrail: engagement ----------------------------------------------------
-# Pre-declared rule (see memo.md): the move breaches the guardrail if
+# Pre-declared rule (see docs/experiment_plan.md): the move breaches the
+# guardrail if
 # gate_40 shows a statistically significant drop in mean rounds played or a
 # significant rise in the share of users who never played a single round.
 t = stats.ttest_ind(g40.sum_gamerounds, g30.sum_gamerounds, equal_var=False)
@@ -156,6 +157,143 @@ R["retention_7_bootstrap"] = {
 print(f"bootstrap D7 diff: mean={boots.mean():+.2f}pp "
       f"CI[{blo:+.2f},{bhi:+.2f}]; P(diff<0)={np.mean(boots < 0):.3f}")
 
+# --- SRM: chi-square test of the arm split -----------------------------------
+# The split is 44,700 / 45,489 against a designed 50/50. A binomial test
+# (above) and the standard chi-square goodness-of-fit SRM check are the
+# same question; report the chi-square form because that is what
+# experimentation platforms alarm on, judged at the usual p < 0.01
+# (investigate) and p < 0.001 (hard alarm) thresholds.
+n_exp = len(df) / 2
+chi2 = float(((len(g30) - n_exp) ** 2 + (len(g40) - n_exp) ** 2) / n_exp)
+srm_p = float(stats.chi2.sf(chi2, df=1))
+R["srm"] = {
+    "n_expected_per_arm": n_exp,
+    "chi2": chi2,
+    "p_value": srm_p,
+    "split_pct_gate_30": float(len(g30) / len(df) * 100),
+    "split_pct_gate_40": float(len(g40) / len(df) * 100),
+    "flags_at_0_01": bool(srm_p < 0.01),
+    "flags_at_0_001": bool(srm_p < 0.001),
+}
+print(f"srm: chi2={chi2:.2f} p={srm_p:.4f} "
+      f"(flags at 0.01: {R['srm']['flags_at_0_01']}, "
+      f"at 0.001: {R['srm']['flags_at_0_001']})")
+
+# --- sensitivity to the split: IPW reweighting to 50/50 -----------------------
+# Weight each arm to a 50/50 target: w = 0.5 / arm_share, Hajek estimator
+# for the weighted arm rates, linearization variance. Note what this can
+# and cannot do: the weights are constant within an arm, so the weighted
+# arm rates equal the raw arm rates exactly and the point estimate cannot
+# move; the check confirms the difference is not an artifact of how the
+# two arms are pooled, and the trim check below probes the part that
+# weighting cannot reach (dependence on the excess treatment users).
+
+
+def hajek_rate(y: pd.Series, w: float):
+    wsum = w * len(y)
+    p = float((w * y).sum() / wsum)
+    var = float((w ** 2 * (y - p) ** 2).sum() / wsum ** 2)
+    n_eff = float(wsum ** 2 / (w ** 2 * len(y)))
+    return p, var, n_eff
+
+
+share30, share40 = len(g30) / len(df), len(g40) / len(df)
+w30, w40 = 0.5 / share30, 0.5 / share40
+ip30, iv30, ne30 = hajek_rate(g30.retention_7, w30)
+ip40, iv40, ne40 = hajek_rate(g40.retention_7, w40)
+idiff = (ip40 - ip30) * 100
+ise = np.sqrt(iv30 + iv40) * 100
+R["sensitivity_ipw_retention_7"] = {
+    "method": "inverse-probability weights w = 0.5 / arm_share, "
+              "Hajek weighted rates, linearization (sandwich) variance",
+    "weight_gate_30": float(w30), "weight_gate_40": float(w40),
+    "rate_gate_30_weighted": ip30, "rate_gate_40_weighted": ip40,
+    "diff_pp": float(idiff),
+    "ci95_pp": [float(idiff - za * ise), float(idiff + za * ise)],
+    "effective_n_gate_30": ne30, "effective_n_gate_40": ne40,
+    "conclusion_holds": bool(idiff < 0 and idiff + za * ise < 0),
+}
+print(f"sensitivity IPW D7: diff={idiff:+.2f}pp "
+      f"CI[{idiff - za * ise:+.2f},{idiff + za * ise:+.2f}] "
+      f"conclusion_holds={R['sensitivity_ipw_retention_7']['conclusion_holds']}")
+
+# --- sensitivity to the split: trim gate_40 to a 44,700 / 44,700 design -------
+# Repeatedly draw a random 44,700-player subset of gate_40 (seeded, exact
+# hypergeometric draws of the retained count) and recompute the D7 test.
+# If the verdict depended on the 789 excess treatment players, it would
+# wobble here; a real dependence would show up as mass near or above zero.
+rng_trim = np.random.default_rng(SEED + 1)
+x40 = int(g40.retention_7.sum())
+x30 = int(g30.retention_7.sum())
+p30 = x30 / len(g30)
+k_trim = rng_trim.hypergeometric(x40, len(g40) - x40, len(g30), size=1_000)
+pt_trim = k_trim / len(g30)
+diffs_trim = (pt_trim - p30) * 100
+p_pool = (k_trim + x30) / (2 * len(g30))
+se_pool = np.sqrt(p_pool * (1 - p_pool) * 2 / len(g30))
+z_trim = (pt_trim - p30) / se_pool
+p_trim = 2 * stats.norm.sf(np.abs(z_trim))
+R["sensitivity_trim_retention_7"] = {
+    "method": "1,000 seeded random trims of gate_40 to n = 44,700 "
+              "(hypergeometric draws), two-proportion z-test per trim",
+    "n_trims": 1_000, "seed": SEED + 1,
+    "mean_diff_pp": float(diffs_trim.mean()),
+    "diff_pp_percentiles_2_5_97_5": [float(np.percentile(diffs_trim, 2.5)),
+                                     float(np.percentile(diffs_trim, 97.5))],
+    "share_of_trims_diff_below_0": float((diffs_trim < 0).mean()),
+    "share_of_trims_significant_at_0_05": float((p_trim < ALPHA).mean()),
+    "conclusion_holds": bool(np.percentile(diffs_trim, 97.5) < 0
+                             and (p_trim < ALPHA).mean() > 0.95),
+}
+print(f"sensitivity trim D7: mean diff={diffs_trim.mean():+.2f}pp, "
+      f"95% of trims in [{np.percentile(diffs_trim, 2.5):+.2f},"
+      f"{np.percentile(diffs_trim, 97.5):+.2f}], significant in "
+      f"{(p_trim < ALPHA).mean():.1%} of trims, "
+      f"conclusion_holds={R['sensitivity_trim_retention_7']['conclusion_holds']}")
+
+# --- retention curve: D1 -> D7 decay by arm -----------------------------------
+# Two observed points per arm (day 1, day 7) plus the conditional survival
+# of day-1 returners to day 7, from the joint flags.
+cond30 = float(g30.loc[g30.retention_1 == 1, "retention_7"].mean())
+cond40 = float(g40.loc[g40.retention_1 == 1, "retention_7"].mean())
+R["retention_curve"] = {
+    "days": [1, 7],
+    "gate_30_pct": [R["retention_1"]["rate_gate_30"] * 100,
+                    R["retention_7"]["rate_gate_30"] * 100],
+    "gate_40_pct": [R["retention_1"]["rate_gate_40"] * 100,
+                    R["retention_7"]["rate_gate_40"] * 100],
+    "d7_rate_among_d1_retained_gate_30": cond30,
+    "d7_rate_among_d1_retained_gate_40": cond40,
+}
+print(f"retention curve: D1->D7 gate_30 "
+      f"{R['retention_curve']['gate_30_pct'][0]:.2f}% -> "
+      f"{R['retention_curve']['gate_30_pct'][1]:.2f}% "
+      f"(conditional {cond30:.3f}); gate_40 "
+      f"{R['retention_curve']['gate_40_pct'][0]:.2f}% -> "
+      f"{R['retention_curve']['gate_40_pct'][1]:.2f}% "
+      f"(conditional {cond40:.3f})")
+
+# --- follow-up experiment sizing ----------------------------------------------
+# Per-arm n to detect a 0.5pp D7 difference at 80% power, alpha = 0.05
+# two-sided, normal approximation, from the observed D7 control rate.
+import math
+p_base = d7["rate_gate_30"]
+delta = 0.005
+p_alt = p_base + delta
+n_arm = math.ceil((za + zb) ** 2
+                  * (p_base * (1 - p_base) + p_alt * (1 - p_alt))
+                  / delta ** 2)
+R["followup_sample_size"] = {
+    "metric": "day-7 retention",
+    "baseline_rate_gate_30": p_base,
+    "mde_pp": delta * 100,
+    "alpha": ALPHA, "power": 0.80,
+    "n_per_arm": int(n_arm),
+    "n_total": int(2 * n_arm),
+}
+print(f"follow-up sizing: {n_arm:,}/arm ({2 * n_arm:,} total) to detect "
+      f"0.5pp on D7 at 80% power from baseline {p_base:.3f}")
+
 # --- figures ------------------------------------------------------------------
 fig, ax = plt.subplots(figsize=(6, 4))
 for i, k in enumerate(("retention_1", "retention_7")):
@@ -188,6 +326,21 @@ ax.axvline(0, color="red", lw=1.5)
 ax.set_xlabel("bootstrap D7 retention difference, gate_40 - gate_30 (pp)")
 ax.set_title("Bootstrap distribution of the D7 difference")
 fig.tight_layout(); fig.savefig(ROOT / "figures" / "bootstrap_d7.png", dpi=150)
+plt.close(fig)
+
+rc = R["retention_curve"]
+fig, ax = plt.subplots(figsize=(6, 4))
+for rates, lab, mk in ((rc["gate_30_pct"], "gate_30", "o"),
+                       (rc["gate_40_pct"], "gate_40", "s")):
+    ax.plot(rc["days"], rates, marker=mk, lw=2, label=lab)
+    for d, r in zip(rc["days"], rates):
+        ax.annotate(f"{r:.2f}%", (d, r), textcoords="offset points",
+                    xytext=(0, 8), ha="center")
+ax.set_xticks([1, 7]); ax.set_xlabel("day after install")
+ax.set_ylabel("retention (%)")
+ax.set_title("Retention decay by arm: day 1 to day 7")
+ax.legend(); ax.set_ylim(0, 55)
+fig.tight_layout(); fig.savefig(ROOT / "figures" / "retention_curve.png", dpi=150)
 plt.close(fig)
 
 (ROOT / "outputs").mkdir(exist_ok=True)
